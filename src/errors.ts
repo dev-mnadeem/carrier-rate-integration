@@ -1,4 +1,4 @@
-import type { ZodError } from "zod";
+import { flattenError, type ZodError } from "zod";
 
 /**
  * Failure taxonomy. Callers branch on `kind` so they never have to pattern
@@ -74,7 +74,7 @@ export function validationError(
 }
 
 export function fromZodError(err: ZodError): CarrierError {
-  return validationError("Invalid input", err.flatten(), err);
+  return validationError("Invalid input", flattenError(err), err);
 }
 
 export function configError(message: string, details?: unknown): CarrierError {

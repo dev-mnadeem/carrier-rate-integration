@@ -1,3 +1,4 @@
+import { flattenError } from "zod";
 import type { UpsIntegrationConfig } from "../config.js";
 import { authError, parseError } from "../errors.js";
 import { isSuccessStatus, type HttpClient } from "../http-client.js";
@@ -89,7 +90,7 @@ export class UpsTokenCache {
       throw parseError(
         "UPS OAuth response did not match the expected shape",
         result.error,
-        result.error.flatten(),
+        flattenError(result.error),
       );
     }
 

@@ -49,8 +49,8 @@ const baseSchema = z.object({
 });
 
 const upsSchema = z.object({
-  UPS_API_BASE_URL: z.string().url(),
-  UPS_OAUTH_TOKEN_URL: z.string().url(),
+  UPS_API_BASE_URL: z.url(),
+  UPS_OAUTH_TOKEN_URL: z.url(),
   UPS_CLIENT_ID: z.string().min(1),
   UPS_CLIENT_SECRET: z.string().min(1),
   UPS_ACCOUNT_NUMBER: z.string().optional().default(""),
@@ -118,13 +118,13 @@ export function loadUpsConfig(
   };
 }
 
-function parseOrThrow<T extends z.ZodTypeAny>(
+function parseOrThrow<T extends z.ZodType>(
   schema: T,
   env: NodeJS.ProcessEnv,
   label: string,
-): z.infer<T> {
+): z.output<T> {
   const result = schema.safeParse(withoutBlanks(env));
-  if (result.success) return result.data as z.infer<T>;
+  if (result.success) return result.data;
   throw configError(
     `Invalid ${label} configuration`,
     fromZodError(result.error).details,
