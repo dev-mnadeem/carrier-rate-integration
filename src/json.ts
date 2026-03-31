@@ -1,8 +1,3 @@
-/**
- * The single JSON helper used by every layer. Both the HTTP client and the UPS
- * adapter previously carried their own private copy of this function.
- */
-
 /** Upper bound on how much of a non-JSON body we keep for error diagnostics. */
 export const ERROR_BODY_SNIPPET_LIMIT = 2000;
 

@@ -1,24 +1,15 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
   type CarrierError,
   createUpsRatingCarrier,
   isCarrierError,
   type FetchFn,
-  type UpsIntegrationConfig,
 } from "../src/index.js";
-
-/** Most cases assert single-shot behaviour, so retrying is off by default. */
-const noRetry = { maxAttempts: 1, baseDelayMs: 0, maxDelayMs: 0 };
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function loadFixture(name: string): unknown {
-  const path = join(__dirname, "fixtures", name);
-  return JSON.parse(readFileSync(path, "utf8")) as unknown;
-}
+import {
+  loadFixture,
+  sampleRequest,
+  upsConfig as baseConfig,
+} from "./support/fixtures.js";
 
 const tokenFixture = loadFixture("ups-token-response.json") as Record<
   string,
@@ -26,52 +17,9 @@ const tokenFixture = loadFixture("ups-token-response.json") as Record<
 >;
 const ratingSuccessFixture = loadFixture("ups-rating-success.json");
 
-const sampleRequest = {
-  origin: {
-    lines: ["123 Ship Street"],
-    city: "TIMONIUM",
-    stateProvinceCode: "MD",
-    postalCode: "21093",
-    countryCode: "US",
-  },
-  destination: {
-    name: "Recipient",
-    lines: ["456 Deliver Lane"],
-    city: "Alpharetta",
-    stateProvinceCode: "GA",
-    postalCode: "30005",
-    countryCode: "US",
-  },
-  shipper: { name: "Acme Inc", accountNumber: "SHIPPER01" },
-  packages: [
-    {
-      packagingTypeCode: "02",
-      weight: { value: 1, unit: "LBS" as const },
-      dimensions: {
-        length: 5,
-        width: 5,
-        height: 5,
-        unit: "IN" as const,
-      },
-    },
-  ],
-};
-
-function baseConfig(
-  overrides: Partial<UpsIntegrationConfig> = {},
-): UpsIntegrationConfig {
-  return {
-    apiBaseUrl: "https://wwwcie.ups.com/api",
-    oauthTokenUrl: "https://wwwcie.ups.com/security/v1/oauth/token",
-    clientId: "test-client-id",
-    clientSecret: "test-client-secret",
-    accountNumber: "ACC123",
-    ratingVersion: "v2409",
-    requestTimeoutMs: 10_000,
-    tokenSkewMs: 60_000,
-    retry: noRetry,
-    ...overrides,
-  };
+function urlOf(input: Parameters<FetchFn>[0]): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
 }
 
 describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
@@ -79,12 +27,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
     const ratingBodies: string[] = [];
     let oauthCalls = 0;
     const fetchMock: FetchFn = async (input, init) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/security/v1/oauth/token")) {
         oauthCalls += 1;
         return new Response(JSON.stringify(tokenFixture), {
@@ -134,12 +77,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
   it("reuses a cached token for subsequent rate calls", async () => {
     let oauthCalls = 0;
     const fetchMock: FetchFn = async (input) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/security/v1/oauth/token")) {
         oauthCalls += 1;
         return new Response(JSON.stringify(tokenFixture), { status: 200 });
@@ -165,12 +103,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
 
     let oauthCalls = 0;
     const fetchMock: FetchFn = async (input) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/security/v1/oauth/token")) {
         oauthCalls += 1;
         return new Response(JSON.stringify(tokenFixture), { status: 200 });
@@ -201,12 +134,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
     let oauthCalls = 0;
     let ratingCalls = 0;
     const fetchMock: FetchFn = async (input) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/security/v1/oauth/token")) {
         oauthCalls += 1;
         return new Response(JSON.stringify(tokenFixture), { status: 200 });
@@ -248,12 +176,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
   it("maps upstream HTTP errors to structured CarrierError", async () => {
     const errBody = loadFixture("ups-rating-error.json");
     const fetchMock: FetchFn = async (input) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/oauth/token")) {
         return new Response(JSON.stringify(tokenFixture), { status: 200 });
       }
@@ -268,12 +191,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
 
   it("maps malformed JSON bodies to parse errors", async () => {
     const fetchMock: FetchFn = async (input) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/oauth/token")) {
         return new Response(JSON.stringify(tokenFixture), { status: 200 });
       }
@@ -287,12 +205,7 @@ describe("UpsRatingCarrier integration (stubbed HTTP)", () => {
 
   it("maps OAuth failures to auth errors", async () => {
     const fetchMock: FetchFn = async (input) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = urlOf(input);
       if (url.includes("/oauth/token")) {
         return new Response(JSON.stringify({ error: "invalid_client" }), {
           status: 401,
@@ -343,11 +256,6 @@ describe("UpsRatingCarrier resilience", () => {
     new Response(JSON.stringify(tokenFixture), { status: 200 });
   const ratingResponse = () =>
     new Response(JSON.stringify(ratingSuccessFixture), { status: 200 });
-
-  function urlOf(input: Parameters<FetchFn>[0]): string {
-    if (typeof input === "string") return input;
-    return input instanceof URL ? input.href : input.url;
-  }
 
   it("issues one OAuth request for concurrent cold-start rate calls", async () => {
     let oauthCalls = 0;
