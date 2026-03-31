@@ -437,7 +437,8 @@ describe("UpsRatingCarrier resilience", () => {
       fetchImpl: fetchMock,
     });
     await expect(carrier.getRates(sampleRequest)).rejects.toMatchObject({
-      kind: "validation",
+      kind: "parse",
+      code: "PARSE_ERROR",
     });
   });
 

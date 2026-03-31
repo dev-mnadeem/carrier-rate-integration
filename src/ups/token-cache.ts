@@ -1,6 +1,5 @@
-import { ZodError } from "zod";
 import type { UpsIntegrationConfig } from "../config.js";
-import { authError, fromZodError, parseError } from "../errors.js";
+import { authError, parseError } from "../errors.js";
 import { isSuccessStatus, type HttpClient } from "../http-client.js";
 import { bodyForDiagnostics } from "../json.js";
 import { oauthTokenResponseSchema } from "../schemas/ups.js";
@@ -83,11 +82,15 @@ export class UpsTokenCache {
       );
     }
 
+    // A malformed token payload is UPS's fault, not the caller's, so it must
+    // not surface as a 400 validation error.
     const result = oauthTokenResponseSchema.safeParse(raw);
     if (!result.success) {
-      throw result.error instanceof ZodError
-        ? fromZodError(result.error)
-        : parseError("Unexpected OAuth token response");
+      throw parseError(
+        "UPS OAuth response did not match the expected shape",
+        result.error,
+        result.error.flatten(),
+      );
     }
 
     this.token = {

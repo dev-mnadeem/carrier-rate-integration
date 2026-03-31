@@ -2,7 +2,12 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FakeRatingCarrier } from "../src/fake/index.js";
 import { BaseRatingCarrier } from "../src/rating-carrier.js";
-import { timeoutError, upstreamError, rateLimitError } from "../src/errors.js";
+import {
+  parseError,
+  rateLimitError,
+  timeoutError,
+  upstreamError,
+} from "../src/errors.js";
 import { MAX_BODY_BYTES, handle } from "../src/server/app.js";
 import { createRatingServer, listen } from "../src/server/http-server.js";
 import { sampleRequest } from "./support/fixtures.js";
@@ -95,6 +100,7 @@ describe("HTTP facade (pure handler)", () => {
     [timeoutError(), 504],
     [rateLimitError("slow down", 429), 429],
     [upstreamError("boom", 500), 502],
+    [parseError("bad token payload"), 502],
   ])("maps carrier failures onto HTTP status codes", async (failure, status) => {
     const res = await handle(new FailingCarrier(failure), {
       method: "POST",
