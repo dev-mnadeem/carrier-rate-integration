@@ -478,4 +478,23 @@ describe("UpsRatingCarrier resilience", () => {
     const quotes = await carrier.getRates(sampleRequest);
     expect(quotes.every((q) => q.carrierId === "ups")).toBe(true);
   });
+
+  it("posts to the rate endpoint when one service is pinned", async () => {
+    const ratingUrls: string[] = [];
+    const fetchMock: FetchFn = (input) => {
+      const url = urlOf(input);
+      if (url.includes("/oauth/token")) return Promise.resolve(tokenResponse());
+      ratingUrls.push(url);
+      return Promise.resolve(ratingResponse());
+    };
+    const carrier = createUpsRatingCarrier(baseConfig(), { fetchImpl: fetchMock });
+
+    await carrier.getRates({ ...sampleRequest, serviceCode: "03" });
+    await carrier.getRates(sampleRequest);
+
+    expect(ratingUrls).toEqual([
+      "https://wwwcie.ups.com/api/rating/v2409/rate",
+      "https://wwwcie.ups.com/api/rating/v2409/shop",
+    ]);
+  });
 });

@@ -60,7 +60,17 @@ export function resolveAccountNumber(
   return (requestAccountNumber ?? "").trim() || defaultAccountNumber.trim();
 }
 
-export function buildUpsShopRequest(
+export type UpsRequestOption = "Rate" | "Shop";
+
+/**
+ * "Shop" makes UPS price every service and ignores `Service.Code`, so a request
+ * pinned to one service has to go out as "Rate" or the filter is silently lost.
+ */
+export function requestOptionFor(req: RateRequest): UpsRequestOption {
+  return req.serviceCode ? "Rate" : "Shop";
+}
+
+export function buildUpsRateRequest(
   req: RateRequest,
   defaultAccountNumber: string,
 ): unknown {
@@ -111,7 +121,7 @@ export function buildUpsShopRequest(
   return {
     RateRequest: {
       Request: {
-        RequestOption: "Shop",
+        RequestOption: requestOptionFor(req),
         TransactionReference: { CustomerContext: TRANSACTION_SOURCE },
       },
       Shipment: shipment,
@@ -120,7 +130,7 @@ export function buildUpsShopRequest(
 }
 
 /**
- * Normalises a UPS Shop response into domain quotes.
+ * Normalises a UPS Rate or Shop response into domain quotes.
  *
  * A rated shipment with no `TotalCharges` is dropped rather than reported at a
  * price of zero: a quote of 0.00 would flow straight into a checkout total.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildUpsShopRequest,
+  buildUpsRateRequest,
   mapRateResponseToQuotes,
   randomTransId,
   resolveAccountNumber,
@@ -16,7 +16,7 @@ type ShopBody = {
 };
 
 function shipmentOf(accountNumber: string | undefined, fallback: string) {
-  const body = buildUpsShopRequest(
+  const body = buildUpsRateRequest(
     { ...sampleRequest, shipper: { name: "Acme Inc", accountNumber } },
     fallback,
   ) as ShopBody;
@@ -42,9 +42,9 @@ describe("resolveAccountNumber", () => {
   });
 });
 
-describe("buildUpsShopRequest", () => {
+describe("buildUpsRateRequest", () => {
   it("asks for every service with RequestOption Shop", () => {
-    const body = buildUpsShopRequest(sampleRequest, "ACC123") as ShopBody;
+    const body = buildUpsRateRequest(sampleRequest, "ACC123") as ShopBody;
     expect(body.RateRequest.Request.RequestOption).toBe("Shop");
   });
 
@@ -69,11 +69,11 @@ describe("buildUpsShopRequest", () => {
   });
 
   it("sends a single package object and a list for multi-piece", () => {
-    const single = buildUpsShopRequest(sampleRequest, "ACC") as ShopBody;
+    const single = buildUpsRateRequest(sampleRequest, "ACC") as ShopBody;
     expect(single.RateRequest.Shipment.NumOfPieces).toBe("1");
     expect(Array.isArray(single.RateRequest.Shipment.Package)).toBe(false);
 
-    const multi = buildUpsShopRequest(
+    const multi = buildUpsRateRequest(
       {
         ...sampleRequest,
         packages: [...sampleRequest.packages, ...sampleRequest.packages],
@@ -85,11 +85,13 @@ describe("buildUpsShopRequest", () => {
   });
 
   it("narrows the request to one service when a service code is given", () => {
-    const body = buildUpsShopRequest(
+    const body = buildUpsRateRequest(
       { ...sampleRequest, serviceCode: "03" },
       "ACC",
     ) as ShopBody;
     expect(body.RateRequest.Shipment.Service).toEqual({ Code: "03" });
+    // UPS ignores Service.Code under Shop, so the option has to switch too.
+    expect(body.RateRequest.Request.RequestOption).toBe("Rate");
   });
 
   it("uppercases the country code through the domain schema", () => {

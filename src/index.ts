@@ -75,8 +75,9 @@ export {
   UPS_CARRIER_ID,
   UpsRatingCarrier,
   UpsTokenCache,
-  buildUpsShopRequest,
+  buildUpsRateRequest,
   mapRateResponseToQuotes,
+  requestOptionFor,
   resolveAccountNumber,
 } from "./ups/index.js";
 export { createRatingServer, handle, listen } from "./server/index.js";

@@ -12,9 +12,11 @@ import type { RateQuote, RateRequest } from "../schemas/domain.js";
 import {
   UPS_CARRIER_ID,
   TRANSACTION_SOURCE,
-  buildUpsShopRequest,
+  buildUpsRateRequest,
   mapRateResponseToQuotes,
   randomTransId,
+  requestOptionFor,
+  type UpsRequestOption,
 } from "./helpers.js";
 import { UpsTokenCache } from "./token-cache.js";
 
@@ -27,8 +29,9 @@ export type UpsRatingCarrierOptions = HttpClientOptions & {
 };
 
 /**
- * UPS Rating "Shop" adapter: OAuth client credentials for auth, one POST per
- * rate request, UPS field names translated to domain types on the way out.
+ * UPS Rating adapter: OAuth client credentials for auth, one POST per rate
+ * request ("Shop" for every service, "Rate" when one service is pinned), UPS
+ * field names translated to domain types on the way out.
  */
 export class UpsRatingCarrier extends BaseRatingCarrier {
   readonly id = UPS_CARRIER_ID;
@@ -55,25 +58,30 @@ export class UpsRatingCarrier extends BaseRatingCarrier {
   }
 
   protected async quote(request: RateRequest): Promise<RateQuote[]> {
+    const url = this.ratingUrl(requestOptionFor(request));
     const body = JSON.stringify(
-      buildUpsShopRequest(request, this.config.accountNumber),
+      buildUpsRateRequest(request, this.config.accountNumber),
     );
     const accessToken = await this.tokens.get();
-    return mapRateResponseToQuotes(await this.postShop(accessToken, body, false));
+    return mapRateResponseToQuotes(
+      await this.postRating(url, accessToken, body, false),
+    );
   }
 
-  private get shopUrl(): string {
-    return `${this.config.apiBaseUrl}/rating/${this.config.ratingVersion}/shop`;
+  private ratingUrl(option: UpsRequestOption): string {
+    const { apiBaseUrl, ratingVersion } = this.config;
+    return `${apiBaseUrl}/rating/${ratingVersion}/${option.toLowerCase()}`;
   }
 
-  private async postShop(
+  private async postRating(
+    url: string,
     accessToken: string,
     body: string,
     isRetry: boolean,
   ): Promise<unknown> {
     const { status, text } = await this.http.request({
       method: "POST",
-      url: this.shopUrl,
+      url,
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
@@ -87,7 +95,7 @@ export class UpsRatingCarrier extends BaseRatingCarrier {
     // A token can be revoked mid-flight, so one 401 earns one fresh token.
     if (status === HTTP_UNAUTHORIZED && !isRetry) {
       this.tokens.invalidate();
-      return this.postShop(await this.tokens.get(), body, true);
+      return this.postRating(url, await this.tokens.get(), body, true);
     }
 
     if (!isSuccessStatus(status)) {
