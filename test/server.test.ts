@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FakeRatingCarrier } from "../src/fake/index.js";
 import { BaseRatingCarrier } from "../src/rating-carrier.js";
 import { timeoutError, upstreamError, rateLimitError } from "../src/errors.js";
-import { handle } from "../src/server/app.js";
+import { MAX_BODY_BYTES, handle } from "../src/server/app.js";
 import { createRatingServer, listen } from "../src/server/http-server.js";
 import { sampleRequest } from "./support/fixtures.js";
 
@@ -104,6 +104,14 @@ describe("HTTP facade (pure handler)", () => {
     expect(res.status).toBe(status);
   });
 
+  it("measures the body cap in bytes, not UTF-16 characters", async () => {
+    // Three bytes per character in UTF-8, so this is well over the cap.
+    const body = "\u20ac".repeat(Math.ceil(MAX_BODY_BYTES / 2));
+    expect(body.length).toBeLessThan(MAX_BODY_BYTES);
+    const res = await handle(carrier, { method: "POST", path: "/v1/rates", body });
+    expect(res.status).toBe(413);
+  });
+
   it("hides an unexpected non-carrier failure behind a generic 500", async () => {
     const res = await handle(new FailingCarrier(new Error("secret internals")), {
       method: "POST",
@@ -120,7 +128,7 @@ describe("HTTP facade (real socket)", () => {
   let origin = "";
 
   beforeAll(async () => {
-    await listen(server, { host: "127.0.0.1", port: 7121 });
+    await listen(server, { host: "127.0.0.1", port: 0 });
     const { port } = server.address() as AddressInfo;
     origin = `http://127.0.0.1:${port}`;
   });
@@ -148,5 +156,17 @@ describe("HTTP facade (real socket)", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { count: number };
     expect(body.count).toBe(3);
+  });
+
+  it("answers an oversized upload with 413 instead of dropping the socket", async () => {
+    const res = await fetch(`${origin}/v1/rates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "x".repeat(MAX_BODY_BYTES + 1),
+    });
+    expect(res.status).toBe(413);
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: "BODY_TOO_LARGE" },
+    });
   });
 });

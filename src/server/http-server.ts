@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { RatingCarrier } from "../rating-carrier.js";
-import { MAX_BODY_BYTES, handle, toErrorResponse } from "./app.js";
+import { MAX_BODY_BYTES, bodyTooLarge, handle, toErrorResponse } from "./app.js";
 
 export type ServerOptions = {
   host: string;
@@ -14,6 +14,12 @@ export function createRatingServer(carrier: RatingCarrier): Server {
       const path = new URL(req.url ?? "/", "http://localhost").pathname;
       try {
         const body = await readBody(req);
+        if (body === null) {
+          // Close the connection: the rest of the oversized upload is discarded.
+          const result = bodyTooLarge();
+          send(res, result.status, result.body, { Connection: "close" });
+          return;
+        }
         const result = await handle(carrier, {
           method: req.method ?? "GET",
           path,
@@ -41,20 +47,32 @@ export function listen(
   });
 }
 
-/** Reads the body, refusing anything past the cap instead of buffering it. */
-function readBody(req: IncomingMessage): Promise<string> {
+/**
+ * Reads the body, or resolves `null` once it passes the cap. The remainder is
+ * drained and dropped rather than buffered, so the client still gets a 413
+ * instead of a reset connection.
+ */
+function readBody(req: IncomingMessage): Promise<string | null> {
   return new Promise((resolve, reject) => {
+    if (Number(req.headers["content-length"] ?? 0) > MAX_BODY_BYTES) {
+      req.resume();
+      resolve(null);
+      return;
+    }
     const chunks: Buffer[] = [];
     let size = 0;
-    req.on("data", (chunk: Buffer) => {
+    const onData = (chunk: Buffer) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        req.destroy();
-        reject(new Error("Request body exceeded the maximum size"));
+        req.removeListener("data", onData);
+        chunks.length = 0;
+        req.resume();
+        resolve(null);
         return;
       }
       chunks.push(chunk);
-    });
+    };
+    req.on("data", onData);
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
@@ -67,11 +85,13 @@ function send(
   },
   status: number,
   body: unknown,
+  extraHeaders: Record<string, string> = {},
 ): void {
   const payload = JSON.stringify(body ?? null);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": String(Buffer.byteLength(payload)),
+    ...extraHeaders,
   });
   res.end(payload);
 }

@@ -65,8 +65,8 @@ async function postRates(
   carrier: RatingCarrier,
   rawBody: string,
 ): Promise<ApiResponse> {
-  if (rawBody.length > MAX_BODY_BYTES) {
-    return errorBody(413, "BODY_TOO_LARGE", "Rate request body is too large");
+  if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
+    return bodyTooLarge();
   }
 
   const payload = safeJsonParse(rawBody);
@@ -88,6 +88,10 @@ async function postRates(
   } catch (e) {
     return toErrorResponse(e);
   }
+}
+
+export function bodyTooLarge(): ApiResponse {
+  return errorBody(413, "BODY_TOO_LARGE", "Rate request body is too large");
 }
 
 export function toErrorResponse(e: unknown): ApiResponse {
