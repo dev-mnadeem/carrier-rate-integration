@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.eslintcache
+.vitest/
+tmp/
+logs/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+project_venv/
+.github/

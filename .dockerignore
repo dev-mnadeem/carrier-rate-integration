@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+dist
+coverage
+docs
+test
+*.log
+.env
+.DS_Store
+eslint.config.js
+vitest.config.ts
+tsconfig.eslint.json

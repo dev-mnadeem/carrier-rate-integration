@@ -1,0 +1,29 @@
+{
+  "origin": {
+    "name": "Acme Fulfilment",
+    "lines": ["123 Ship Street"],
+    "city": "Timonium",
+    "stateProvinceCode": "MD",
+    "postalCode": "21093",
+    "countryCode": "US"
+  },
+  "destination": {
+    "name": "Dana Reyes",
+    "lines": ["456 Deliver Lane"],
+    "city": "Alpharetta",
+    "stateProvinceCode": "GA",
+    "postalCode": "30005",
+    "countryCode": "US"
+  },
+  "shipper": {
+    "name": "Acme Inc",
+    "accountNumber": ""
+  },
+  "packages": [
+    {
+      "packagingTypeCode": "02",
+      "weight": { "value": 4.5, "unit": "LBS" },
+      "dimensions": { "length": 12, "width": 9, "height": 6, "unit": "IN" }
+    }
+  ]
+}
