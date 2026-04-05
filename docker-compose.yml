@@ -1,0 +1,37 @@
+services:
+  rates:
+    build:
+      context: .
+    image: cybership-carrier-integration:local
+    # Defaults to the offline fake carrier so `docker compose up` works with no
+    # UPS account. Set CARRIER_ID=ups once real credentials are in .env.
+    environment:
+      CARRIER_ID: ${CARRIER_ID:-fake}
+      HOST: 0.0.0.0
+      PORT: "7121"
+      REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-30000}
+      MAX_RETRY_ATTEMPTS: ${MAX_RETRY_ATTEMPTS:-3}
+      UPS_API_BASE_URL: ${UPS_API_BASE_URL:-}
+      UPS_OAUTH_TOKEN_URL: ${UPS_OAUTH_TOKEN_URL:-}
+      UPS_CLIENT_ID: ${UPS_CLIENT_ID:-}
+      UPS_CLIENT_SECRET: ${UPS_CLIENT_SECRET:-}
+      UPS_ACCOUNT_NUMBER: ${UPS_ACCOUNT_NUMBER:-}
+      UPS_RATING_VERSION: ${UPS_RATING_VERSION:-v2409}
+    ports:
+      - "7121:7121"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:7121/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
