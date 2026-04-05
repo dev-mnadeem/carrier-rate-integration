@@ -1,0 +1,10 @@
+{
+  "response": {
+    "errors": [
+      {
+        "code": "111111",
+        "message": "Invalid request"
+      }
+    ]
+  }
+}
