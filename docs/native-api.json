@@ -1,0 +1,94 @@
+{
+  "mode": "Fake carrier, invented prices; no UPS account",
+  "exchanges": [
+    {
+      "request": "GET /healthz",
+      "status": 200,
+      "response": {
+        "status": "ok",
+        "carrier": "fake"
+      }
+    },
+    {
+      "request": "GET /v1/carriers",
+      "status": 200,
+      "response": {
+        "active": "fake",
+        "available": [
+          "fake",
+          "ups"
+        ]
+      }
+    },
+    {
+      "request": "POST /v1/rates",
+      "status": 200,
+      "response": {
+        "carrierId": "fake",
+        "count": 3,
+        "cheapest": {
+          "carrierId": "fake",
+          "serviceCode": "03",
+          "serviceName": "Ground",
+          "totalPrice": "13.14",
+          "currencyCode": "USD",
+          "billingWeight": "4.66"
+        },
+        "quotes": [
+          {
+            "carrierId": "fake",
+            "serviceCode": "03",
+            "serviceName": "Ground",
+            "totalPrice": "13.14",
+            "currencyCode": "USD",
+            "billingWeight": "4.66"
+          },
+          {
+            "carrierId": "fake",
+            "serviceCode": "02",
+            "serviceName": "2nd Day Air",
+            "totalPrice": "27.59",
+            "currencyCode": "USD",
+            "billingWeight": "4.66"
+          },
+          {
+            "carrierId": "fake",
+            "serviceCode": "01",
+            "serviceName": "Next Day Air",
+            "totalPrice": "44.68",
+            "currencyCode": "USD",
+            "billingWeight": "4.66"
+          }
+        ]
+      }
+    },
+    {
+      "request": "POST /v1/rates",
+      "status": 400,
+      "response": {
+        "error": {
+          "kind": "validation",
+          "code": "VALIDATION_ERROR",
+          "message": "Invalid input",
+          "details": {
+            "formErrors": [],
+            "fieldErrors": {
+              "origin": [
+                "Invalid input: expected object, received undefined"
+              ],
+              "destination": [
+                "Invalid input: expected object, received undefined"
+              ],
+              "shipper": [
+                "Invalid input: expected object, received undefined"
+              ],
+              "packages": [
+                "Invalid input: expected array, received undefined"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

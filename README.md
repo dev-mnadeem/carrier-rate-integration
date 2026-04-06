@@ -65,3 +65,31 @@ curl -s http://127.0.0.1:7121/healthz
 ## Scope
 
 Only rate shopping is implemented. Labels, tracking, voiding and negotiated rates are not, and the service has no auth of its own since it's meant to sit behind an internal caller.
+
+## Verified native example
+
+![Native API workflow](docs/screenshots/native-api.png)
+
+The native run uses the fake carrier, with invented rates; it checks quote shopping and invalid-request rejection. No UPS request was sent.
+[Captured responses](docs/native-api.json) use disposable fixture data.
+
+The local suite, TypeScript build, and production dependency audit were rerun
+on Node 22. Docker execution remains unverified in this environment.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant HTTP as HTTP facade
+    participant Port as RatingCarrier
+    participant Adapter as Fake or UPS adapter
+    Caller->>HTTP: POST /v1/rates
+    HTTP->>Port: Validate shipment
+    Port->>Adapter: Quote normalized shipment
+    Adapter-->>Port: Carrier-neutral price strings
+    Port-->>HTTP: Ranked quotes and cheapest service
+    HTTP-->>Caller: JSON response
+```
+
+## Author
+
+[**Muhammad Nadeem**](https://github.com/dev-mnadeem)
